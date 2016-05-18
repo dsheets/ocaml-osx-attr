@@ -1,0 +1,4 @@
+<*.{ml,mli}>: package(ctypes.stubs), package(unix-errno.unix)
+<*.{ml,mli}>: package(unix-type-representations), package(unix-time.unix)
+<osx_attr_stubs.c>: use_ctypes, use_osx_attr_util
+<*.{cma,cmxa}>: use_osx_attr_stubs
