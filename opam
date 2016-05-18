@@ -7,7 +7,7 @@ homepage: "https://github.com/dsheets/ocaml-osx-attr"
 bug-reports: "https://github.com/dsheets/ocaml-osx-attr/issues"
 dev-repo: "https://github.com/dsheets/ocaml-osx-attr.git"
 license: "ISC"
-tags: [ "osx" "attr" "attributes" "file system"]
+tags: [ "osx" "attr" "attributes" "getattrlist" "setattrlist" "file system"]
 build: [
   [make "build"]
 ]
