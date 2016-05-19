@@ -688,8 +688,6 @@ let xsetlist ~no_follow attrs f call label =
   let options =
     if no_follow then Types.Options.nofollow else Unsigned.ULong.zero
   in
-  print_endline (string_of Types.AttrList.t (!@ attrlist_p));
-  Printf.printf "%S\n" (string_from_ptr buffer_p ~length:count);
   Errno_unix.raise_on_errno ~call ~label (fun () ->
     let rc = f attrlist_p buffer (Unsigned.Size_t.of_int count) options in
     if rc < 0 then None else Some ()
