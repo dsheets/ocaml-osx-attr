@@ -24,7 +24,8 @@ module C(F: Cstubs.Types.TYPE) = struct
     let nofollow          = F.constant "FSOPT_NOFOLLOW" t
     let report_fullsize   = F.constant "FSOPT_REPORT_FULLSIZE" t
     let pack_inval_attrs  = F.constant "FSOPT_PACK_INVAL_ATTRS" t
-    let attr_cmn_extended = F.constant "FSOPT_ATTR_CMN_EXTENDED" t
+    (* OS X 10.10+ only *)
+    (*let attr_cmn_extended = F.constant "FSOPT_ATTR_CMN_EXTENDED" t*)
   end
 
   module AttrGroup = struct
@@ -92,8 +93,9 @@ module C(F: Cstubs.Types.TYPE) = struct
       let grpid          = F.constant "ATTR_CMN_GRPID" AttrGroup.t
       let accessmask     = F.constant "ATTR_CMN_ACCESSMASK" AttrGroup.t
       let flags          = F.constant "ATTR_CMN_FLAGS" AttrGroup.t
-      let gen_count      = F.constant "ATTR_CMN_GEN_COUNT" AttrGroup.t
-      let document_id    = F.constant "ATTR_CMN_DOCUMENT_ID" AttrGroup.t
+      (* OS X 10.10+ only *)
+      (*let gen_count      = F.constant "ATTR_CMN_GEN_COUNT" AttrGroup.t
+        let document_id    = F.constant "ATTR_CMN_DOCUMENT_ID" AttrGroup.t*)
       let useraccess     = F.constant "ATTR_CMN_USERACCESS" AttrGroup.t
       let extended_security =
         F.constant "ATTR_CMN_EXTENDED_SECURITY" AttrGroup.t
@@ -103,8 +105,9 @@ module C(F: Cstubs.Types.TYPE) = struct
       let parentid       = F.constant "ATTR_CMN_PARENTID" AttrGroup.t
       let fullpath       = F.constant "ATTR_CMN_FULLPATH" AttrGroup.t
       let addedtime      = F.constant "ATTR_CMN_ADDEDTIME" AttrGroup.t
-      let data_protect_flags =
-        F.constant "ATTR_CMN_DATA_PROTECT_FLAGS" AttrGroup.t
+      (* OS X 10.10+ only *)
+      (*let data_protect_flags =
+        F.constant "ATTR_CMN_DATA_PROTECT_FLAGS" AttrGroup.t*)
     end
 
     module Volume = struct
