@@ -8,7 +8,7 @@ archive(native, plugin) = "osx_attr.cmxs"
 exists_if = "osx_attr.cma"
 
 package "lwt" (
-  requires = "osx-attr lwt"
+  requires = "osx-attr lwt.unix"
   archive(byte) = "osx_attr_lwt.cma"
   archive(byte, plugin) = "osx_attr_lwt.cma"
   archive(native) = "osx_attr_lwt.cmxa"

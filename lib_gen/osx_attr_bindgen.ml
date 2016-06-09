@@ -15,12 +15,6 @@
  *
  *)
 
-let headers = "\
-#include <sys/attr.h>\n\
-#include <unistd.h>\n\
-#include \"osx_attr_util.h\"\n\
-"
-
 let prefix = "osx_attr_"
 
 module Prefixed_bindings(F: Cstubs.FOREIGN) =
@@ -43,14 +37,21 @@ type configuration = {
 let standard_configuration = {
   errno = Cstubs.ignore_errno;
   concurrency = Cstubs.sequential;
-  headers;
+  headers = "\
+#include <sys/attr.h>\n\
+#include <unistd.h>\n\
+#include \"osx_attr_util.h\"\n\
+";
   bindings = (module Prefixed_bindings)
 }
 
 let lwt_configuration = {
   errno = Cstubs.return_errno;
   concurrency = Cstubs.lwt_jobs;
-  headers;
+  headers = "\
+#include <sys/attr.h>\n\
+#include <unistd.h>\n\
+";
   bindings = (module Osx_attr_bindings.C)
 }
 

@@ -1,1 +1,5 @@
-<*.*>: package(lwt)
+<*.*>: package(lwt.unix), thread, package(ctypes.stubs)
+<*.*>: package(unix-type-representations), package(unix-errno)
+<osx_attr_lwt_stubs.c>: use_lwt, use_ctypes
+<*.{cma,cmxa}>: use_osx_attr_lwt_stubs
+

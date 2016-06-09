@@ -4,10 +4,12 @@ FINDLIB_NAME=osx-attr
 MOD_NAME=osx_attr
 
 OCAML_LIB_DIR=$(shell ocamlc -where)
-
+LWT_LIB_DIR=$(shell ocamlfind query lwt)
 CTYPES_LIB_DIR=$(shell ocamlfind query ctypes)
 
-OCAMLBUILD=CTYPES_LIB_DIR=$(CTYPES_LIB_DIR) OCAML_LIB_DIR=$(OCAML_LIB_DIR) \
+OCAMLBUILD=CTYPES_LIB_DIR=$(CTYPES_LIB_DIR)  \
+           OCAML_LIB_DIR=$(OCAML_LIB_DIR)    \
+           LWT_LIB_DIR=$(LWT_LIB_DIR)        \
 	ocamlbuild -use-ocamlfind -classic-display
 
 WITH_LWT=$(shell ocamlfind query threads lwt > /dev/null 2>&1 ; echo $$?)
@@ -33,6 +35,9 @@ INSTALL_LWT:=$(addprefix $(MOD_NAME)_lwt,$(TYPES)) \
              $(addprefix $(MOD_NAME)_lwt,$(TARGETS))
 
 INSTALL_LWT:=$(addprefix _build/lwt/,$(INSTALL_LWT))
+INSTALL_LWT:=$(INSTALL_LWT) \
+	      -dll _build/lwt/dll$(MOD_NAME)_lwt_stubs.so \
+	      -nodll _build/lwt/lib$(MOD_NAME)_lwt_stubs.a
 
 INSTALL+=$(INSTALL_LWT)
 endif
