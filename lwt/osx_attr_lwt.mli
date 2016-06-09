@@ -14,3 +14,5 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  *)
+
+include Osx_attr.S with type 'a t = 'a Lwt.t
