@@ -27,28 +27,28 @@ module Type = Osx_attr_types.C(Osx_attr_types_detected)
 
 module C(F: Cstubs.FOREIGN) = struct
 
-  let getattrlist = F.foreign "osx_attr_getattrlist" (
+  let getattrlist = F.(foreign "osx_attr_getattrlist" (
     string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
-  )
+  ))
 
-  let fgetattrlist = F.foreign "osx_attr_fgetattrlist" (
+  let fgetattrlist = F.(foreign "osx_attr_fgetattrlist" (
     int @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
-  )
+  ))
 
-  let getattrlistat = F.foreign "osx_attr_getattrlistat" (
+  let getattrlistat = F.(foreign "osx_attr_getattrlistat" (
     int @-> string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @->
     ulong @-> returning int
-  )
+  ))
 
-  let setattrlist = F.foreign "osx_attr_setattrlist" (
+  let setattrlist = F.(foreign "osx_attr_setattrlist" (
     string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
-  )
+  ))
 
-  let fsetattrlist = F.foreign "osx_attr_fsetattrlist" (
+  let fsetattrlist = F.(foreign "osx_attr_fsetattrlist" (
     int @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
-  )
+  ))
 end
