@@ -18,7 +18,6 @@
 open Ctypes
 
 module Types = Osx_attr_types.C(Osx_attr_types_detected)
-module C = Osx_attr_bindings.C(Osx_attr_generated)
 
 let int_of_fd = Unix_representations.int_of_file_descr
 
@@ -587,125 +586,182 @@ module Value = struct
     | File (q, v)      -> File.pack q p v
 end
 
-let raise_errno_error ~call ~label errno =
-  raise
-    (Errno.Error { Errno.errno = Errno.of_code ~host:Errno_unix.host errno;
-                   call; label; })
+module type MONAD =
+sig
+  type 'a t
+  val return : 'a -> 'a t
+  val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+end
 
-let attrlist_of_groups ~returned (common, vol, dir, file, fork) =
-  let attrlist_p = allocate_n Types.AttrList.t ~count:1 in
-  let attrlist = !@ attrlist_p in
-  let common =
-    if returned
-    then Unsigned.UInt32.logor common Types.Attributes.Common.returned_attrs
-    else common
-  in
-  setf attrlist Types.AttrList.bitmapcount Types.AttrList.attr_bit_map_count;
-  setf attrlist Types.AttrList.commonattr common;
-  setf attrlist Types.AttrList.volattr vol;
-  setf attrlist Types.AttrList.dirattr dir;
-  setf attrlist Types.AttrList.fileattr file;
-  setf attrlist Types.AttrList.forkattr fork;
-  attrlist_p
+module type S =
+sig
+  type _ t
 
-let xgetlist ~no_follow ~size attrs f call label =
-  let rec try_call count =
+  val getlist :
+    ?no_follow:bool -> ?size:int -> Query.t list -> string -> Value.t list t
+
+  val fgetlist :
+    ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr ->
+    Value.t list t
+
+  val getlistat :
+    ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr -> string ->
+    Value.t list t
+
+  val get : ?no_follow:bool -> ?size:int -> 'a Select.t -> string -> 'a option t
+
+  val fget :
+    ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> 'a option t
+
+  val getat :
+    ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> string ->
+    'a option t
+
+  val setlist : ?no_follow:bool -> Value.t list -> string -> unit t
+
+  val fsetlist : ?no_follow:bool -> Value.t list -> Unix.file_descr -> unit t
+
+  val set : ?no_follow:bool -> Value.t -> string -> unit t
+
+  val fset : ?no_follow:bool -> Value.t -> Unix.file_descr -> unit t
+end
+
+module Make(M: MONAD)(C: Osx_attr_bindings.S with type 'a t := 'a M.t) =
+struct
+  open M
+
+  let raise_errno_error ~call ~label errno =
+    raise
+      (Errno.Error { Errno.errno = Errno.of_code ~host:Errno_unix.host errno;
+                     call; label; })
+
+  let attrlist_of_groups ~returned (common, vol, dir, file, fork) =
+    let attrlist_p = allocate_n Types.AttrList.t ~count:1 in
+    let attrlist = !@ attrlist_p in
+    let common =
+      if returned
+      then Unsigned.UInt32.logor common Types.Attributes.Common.returned_attrs
+      else common
+    in
+    setf attrlist Types.AttrList.bitmapcount Types.AttrList.attr_bit_map_count;
+    setf attrlist Types.AttrList.commonattr common;
+    setf attrlist Types.AttrList.volattr vol;
+    setf attrlist Types.AttrList.dirattr dir;
+    setf attrlist Types.AttrList.fileattr file;
+    setf attrlist Types.AttrList.forkattr fork;
+    attrlist_p
+
+  let xgetlist ~no_follow ~size attrs f call label =
+    let rec try_call count =
+      let attrlist_p =
+        attrlist_of_groups ~returned:true (Query.groups_of_attrs attrs)
+      in
+      let buffer = to_voidp (allocate_n char ~count) in
+      let count_ = Unsigned.Size_t.of_int count in
+      let options =
+        if no_follow
+        then Types.Options.(Unsigned.ULong.logor report_fullsize nofollow)
+        else Types.Options.report_fullsize
+      in
+      f attrlist_p buffer count_ options >>= fun (rc, errno) ->
+      if rc < 0 then raise_errno_error ~call ~label errno else 
+      let data_p = from_voidp uint32_t buffer in
+      let returned_size = Unsigned.UInt32.to_int (!@ data_p) in
+      match compare returned_size count with
+      | x when x >= 1 -> (* too small, try again *)
+        try_call returned_size
+      | _ -> (* unpack *)
+        let data_p = data_p +@ 1 in
+        let returned_p = from_voidp Types.AttrSet.t (to_voidp data_p) in
+        let attrs = Query.sort_filter (!@ returned_p) attrs in
+        let data_p = to_voidp (returned_p +@ 1) in return @@
+        fst (List.fold_left (fun (results, data_p) attr ->
+          let result, next = Value.unpack attr data_p in
+          (result::results, next)
+        ) ([], data_p) attrs)
+    in
+    try_call size
+
+  let getlist ?(no_follow=false) ?(size=64) attrs path =
+    xgetlist ~no_follow ~size attrs (C.getattrlist path) "getattrlist" path
+
+  let fgetlist ?(no_follow=false) ?(size=64) attrs fd =
+    let fd = int_of_fd fd in
+    xgetlist ~no_follow ~size attrs (C.fgetattrlist fd) "fgetattrlist"
+      (string_of_int fd)
+
+  let getlistat ?(no_follow=false) ?(size=64) attrs dirfd path =
+    let fd = int_of_fd dirfd in
+    xgetlist ~no_follow ~size attrs (C.getattrlistat fd path) "getattrlistat"
+      (Printf.sprintf "%d:%s" fd path)
+
+  let xget ?no_follow ?size selector f v =
+    f ?no_follow ?size [Select.to_query selector] v >>= fun attrs ->
+    let rec check = function
+      | [] -> None
+      | next::rest -> match Value.select selector next with
+        | Some v -> Some v
+        | None -> check rest
+    in
+    return (check attrs)
+
+  let get ?(no_follow=false) ?(size=64) selector path =
+    xget ~no_follow ~size selector getlist path
+
+  let fget ?(no_follow=false) ?(size=64) selector fd =
+    xget ~no_follow ~size selector fgetlist fd
+
+  let getat ?(no_follow=false) ?(size=64) selector fd path =
+    let f ?no_follow ?size attrs = getlistat ?no_follow ?size attrs fd in
+    xget ~no_follow ~size selector f path
+
+  let xsetlist ~no_follow attrs f call label =
     let attrlist_p =
-      attrlist_of_groups ~returned:true (Query.groups_of_attrs attrs)
+      attrlist_of_groups ~returned:false (Value.groups_of_attrs attrs)
     in
-    let buffer = to_voidp (allocate_n char ~count) in
-    let count_ = Unsigned.Size_t.of_int count in
+    let attrs = List.sort_uniq compare attrs in
+    let count_list, count_trailer =
+      List.fold_left (fun (size_list, size_trailer) attr ->
+        let attr_size, attr_trailer = Value.pack_size attr in
+        size_list + attr_size, size_trailer + attr_trailer
+      ) (0, 0) attrs
+    in
+    let count = count_list + count_trailer in
+    let buffer_p = allocate_n char ~count in
+    let buffer = to_voidp buffer_p in
+    let trailer = buffer_p +@ count_list in
+    ignore (List.fold_left Value.pack (buffer, trailer) attrs);
     let options =
-      if no_follow
-      then Types.Options.(Unsigned.ULong.logor report_fullsize nofollow)
-      else Types.Options.report_fullsize
+      if no_follow then Types.Options.nofollow else Unsigned.ULong.zero
     in
-    let rc, errno = f attrlist_p buffer count_ options in
+    f attrlist_p buffer (Unsigned.Size_t.of_int count) options >>= fun (rc, errno) ->
     if rc < 0
     then raise_errno_error ~call ~label errno
-    else ();
-    let data_p = from_voidp uint32_t buffer in
-    let returned_size = Unsigned.UInt32.to_int (!@ data_p) in
-    match compare returned_size count with
-    | x when x >= 1 -> (* too small, try again *)
-      try_call returned_size
-    | _ -> (* unpack *)
-      let data_p = data_p +@ 1 in
-      let returned_p = from_voidp Types.AttrSet.t (to_voidp data_p) in
-      let attrs = Query.sort_filter (!@ returned_p) attrs in
-      let data_p = to_voidp (returned_p +@ 1) in
-      fst (List.fold_left (fun (results, data_p) attr ->
-        let result, next = Value.unpack attr data_p in
-        (result::results, next)
-      ) ([], data_p) attrs)
-  in
-  try_call size
+    else return ()
 
-let getlist ?(no_follow=false) ?(size=64) attrs path =
-  xgetlist ~no_follow ~size attrs (C.getattrlist path) "getattrlist" path
+  let setlist ?(no_follow=false) attrs path =
+    xsetlist ~no_follow attrs (C.setattrlist path) "setattrlist" path
 
-let fgetlist ?(no_follow=false) ?(size=64) attrs fd =
-  let fd = int_of_fd fd in
-  xgetlist ~no_follow ~size attrs (C.fgetattrlist fd) "fgetattrlist"
-    (string_of_int fd)
+  let fsetlist ?(no_follow=false) attrs fd =
+    let fd = int_of_fd fd in
+    xsetlist ~no_follow attrs (C.fsetattrlist fd) "fsetattrlist"
+      (string_of_int fd)
 
-let getlistat ?(no_follow=false) ?(size=64) attrs dirfd path =
-  let fd = int_of_fd dirfd in
-  xgetlist ~no_follow ~size attrs (C.getattrlistat fd path) "getattrlistat"
-    (Printf.sprintf "%d:%s" fd path)
+  let set ?(no_follow=false) attr path = setlist ~no_follow [attr] path
 
-let xget ?no_follow ?size selector f v =
-  let attrs = f ?no_follow ?size [Select.to_query selector] v in
-  let rec check = function
-    | [] -> None
-    | next::rest -> match Value.select selector next with
-      | Some v -> Some v
-      | None -> check rest
-  in
-  check attrs
+  let fset ?(no_follow=false) attr fd = fsetlist ~no_follow [attr] fd
+end
 
-let get ?(no_follow=false) ?(size=64) selector path =
-  xget ~no_follow ~size selector getlist path
-
-let fget ?(no_follow=false) ?(size=64) selector fd =
-  xget ~no_follow ~size selector fgetlist fd
-
-let getat ?(no_follow=false) ?(size=64) selector fd path =
-  let f ?no_follow ?size attrs = getlistat ?no_follow ?size attrs fd in
-  xget ~no_follow ~size selector f path
-
-let xsetlist ~no_follow attrs f call label =
-  let attrlist_p =
-    attrlist_of_groups ~returned:false (Value.groups_of_attrs attrs)
-  in
-  let attrs = List.sort_uniq compare attrs in
-  let count_list, count_trailer =
-    List.fold_left (fun (size_list, size_trailer) attr ->
-      let attr_size, attr_trailer = Value.pack_size attr in
-      size_list + attr_size, size_trailer + attr_trailer
-    ) (0, 0) attrs
-  in
-  let count = count_list + count_trailer in
-  let buffer_p = allocate_n char ~count in
-  let buffer = to_voidp buffer_p in
-  let trailer = buffer_p +@ count_list in
-  ignore (List.fold_left Value.pack (buffer, trailer) attrs);
-  let options =
-    if no_follow then Types.Options.nofollow else Unsigned.ULong.zero
-  in
-  let rc, errno = f attrlist_p buffer (Unsigned.Size_t.of_int count) options in
-  if rc < 0
-  then raise_errno_error ~call ~label errno
-  else ()
-
-let setlist ?(no_follow=false) attrs path =
-  xsetlist ~no_follow attrs (C.setattrlist path) "setattrlist" path
-
-let fsetlist ?(no_follow=false) attrs fd =
-  let fd = int_of_fd fd in
-  xsetlist ~no_follow attrs (C.fsetattrlist fd) "fsetattrlist"
-    (string_of_int fd)
-
-let set ?(no_follow=false) attr path = setlist ~no_follow [attr] path
-
-let fset ?(no_follow=false) attr fd = fsetlist ~no_follow [attr] fd
+module C = Osx_attr_bindings.C(
+  struct
+    include Osx_attr_generated
+    let foreign f = foreign ("osx_attr_"^ f)
+  end)
+module Identity_monad =
+struct
+  type 'a t = 'a
+  let return v = v
+  let (>>=) = (|>)
+end
+type 'a t = 'a
+include Make(Identity_monad)(C)

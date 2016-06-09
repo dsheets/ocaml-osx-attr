@@ -25,7 +25,30 @@ let (??<) field int = field land int <> 0
 
 module Type = Osx_attr_types.C(Osx_attr_types_detected)
 
-module C(F: Cstubs.FOREIGN) = struct
+module type S =
+sig
+  open Unsigned
+
+  type 'a t
+
+  val getattrlist :
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val fgetattrlist :
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val getattrlistat :
+    int -> string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val setattrlist :
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val fsetattrlist :
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+end
+
+module C(F: Cstubs.FOREIGN) =
+struct
 
   let getattrlist = F.(foreign "getattrlist" (
     string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
