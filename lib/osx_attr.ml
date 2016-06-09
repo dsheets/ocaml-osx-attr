@@ -587,6 +587,11 @@ module Value = struct
     | File (q, v)      -> File.pack q p v
 end
 
+let raise_errno_error ~call ~label errno =
+  raise
+    (Errno.Error { Errno.errno = Errno.of_code ~host:Errno_unix.host errno;
+                   call; label; })
+
 let attrlist_of_groups ~returned (common, vol, dir, file, fork) =
   let attrlist_p = allocate_n Types.AttrList.t ~count:1 in
   let attrlist = !@ attrlist_p in
@@ -615,10 +620,10 @@ let xgetlist ~no_follow ~size attrs f call label =
       then Types.Options.(Unsigned.ULong.logor report_fullsize nofollow)
       else Types.Options.report_fullsize
     in
-    Errno_unix.raise_on_errno ~call ~label (fun () ->
-      let rc = f attrlist_p buffer count_ options in
-      if rc < 0 then None else Some ()
-    );
+    let rc, errno = f attrlist_p buffer count_ options in
+    if rc < 0
+    then raise_errno_error ~call ~label errno
+    else ();
     let data_p = from_voidp uint32_t buffer in
     let returned_size = Unsigned.UInt32.to_int (!@ data_p) in
     match compare returned_size count with
@@ -688,10 +693,10 @@ let xsetlist ~no_follow attrs f call label =
   let options =
     if no_follow then Types.Options.nofollow else Unsigned.ULong.zero
   in
-  Errno_unix.raise_on_errno ~call ~label (fun () ->
-    let rc = f attrlist_p buffer (Unsigned.Size_t.of_int count) options in
-    if rc < 0 then None else Some ()
-  )
+  let rc, errno = f attrlist_p buffer (Unsigned.Size_t.of_int count) options in
+  if rc < 0
+  then raise_errno_error ~call ~label errno
+  else ()
 
 let setlist ?(no_follow=false) attrs path =
   xsetlist ~no_follow attrs (C.setattrlist path) "setattrlist" path

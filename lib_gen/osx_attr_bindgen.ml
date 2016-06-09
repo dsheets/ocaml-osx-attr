@@ -35,7 +35,7 @@ type configuration = {
 }
 
 let standard_configuration = {
-  errno = Cstubs.ignore_errno;
+  errno = Cstubs.return_errno;
   concurrency = Cstubs.sequential;
   headers = "\
 #include <sys/attr.h>\n\
