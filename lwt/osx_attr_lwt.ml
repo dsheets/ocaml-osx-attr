@@ -14,3 +14,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  *)
+
+module Gen = Osx_attr_lwt_generated
+module G = Osx_attr_bindings.C(Gen)
+module C =
+struct
+  type 'a t = 'a Lwt.t
+
+  let getattrlist s a p l u = G.(getattrlist s a p l u).Gen.lwt
+  let fgetattrlist x a p l u = G.(fgetattrlist x a p l u).Gen.lwt
+  let getattrlistat x y a p l u = G.(getattrlistat x y a p l u).Gen.lwt
+  let setattrlist s a p l u = G.(setattrlist s a p l u).Gen.lwt
+  let fsetattrlist s a p l u = G.(fsetattrlist s a p l u).Gen.lwt
+end
+type 'a t = 'a Lwt.t
+include Osx_attr.Make(Lwt)(C)

@@ -25,29 +25,52 @@ let (??<) field int = field land int <> 0
 
 module Type = Osx_attr_types.C(Osx_attr_types_detected)
 
-module C(F: Cstubs.FOREIGN) = struct
+module type S =
+sig
+  open Unsigned
 
-  let getattrlist = F.(foreign "osx_attr_getattrlist" (
+  type 'a t
+
+  val getattrlist :
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val fgetattrlist :
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val getattrlistat :
+    int -> string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val setattrlist :
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+
+  val fsetattrlist :
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+end
+
+module C(F: Cstubs.FOREIGN) =
+struct
+
+  let getattrlist = F.(foreign "getattrlist" (
     string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
   ))
 
-  let fgetattrlist = F.(foreign "osx_attr_fgetattrlist" (
+  let fgetattrlist = F.(foreign "fgetattrlist" (
     int @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
   ))
 
-  let getattrlistat = F.(foreign "osx_attr_getattrlistat" (
+  let getattrlistat = F.(foreign "getattrlistat" (
     int @-> string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @->
     ulong @-> returning int
   ))
 
-  let setattrlist = F.(foreign "osx_attr_setattrlist" (
+  let setattrlist = F.(foreign "setattrlist" (
     string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
   ))
 
-  let fsetattrlist = F.(foreign "osx_attr_fsetattrlist" (
+  let fsetattrlist = F.(foreign "fsetattrlist" (
     int @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
     returning int
   ))

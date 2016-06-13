@@ -84,30 +84,46 @@ module Value : sig
     | File : 'a File.t * 'a -> t
 end
 
-val getlist :
-  ?no_follow:bool -> ?size:int -> Query.t list -> string -> Value.t list
+module type S =
+sig
+  type _ t
 
-val fgetlist :
-  ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr ->
-  Value.t list
+  val getlist :
+    ?no_follow:bool -> ?size:int -> Query.t list -> string -> Value.t list t
 
-val getlistat :
-  ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr -> string ->
-  Value.t list
+  val fgetlist :
+    ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr ->
+    Value.t list t
 
-val get : ?no_follow:bool -> ?size:int -> 'a Select.t -> string -> 'a option
+  val getlistat :
+    ?no_follow:bool -> ?size:int -> Query.t list -> Unix.file_descr -> string ->
+    Value.t list t
 
-val fget :
-  ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> 'a option
+  val get : ?no_follow:bool -> ?size:int -> 'a Select.t -> string -> 'a option t
 
-val getat :
-  ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> string ->
-  'a option
+  val fget :
+    ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> 'a option t
 
-val setlist : ?no_follow:bool -> Value.t list -> string -> unit
+  val getat :
+    ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> string ->
+    'a option t
 
-val fsetlist : ?no_follow:bool -> Value.t list -> Unix.file_descr -> unit
+  val setlist : ?no_follow:bool -> Value.t list -> string -> unit t
 
-val set : ?no_follow:bool -> Value.t -> string -> unit
+  val fsetlist : ?no_follow:bool -> Value.t list -> Unix.file_descr -> unit t
 
-val fset : ?no_follow:bool -> Value.t -> Unix.file_descr -> unit
+  val set : ?no_follow:bool -> Value.t -> string -> unit t
+
+  val fset : ?no_follow:bool -> Value.t -> Unix.file_descr -> unit t
+end
+
+module Make
+    (M: sig
+       type 'a t
+       val return : 'a -> 'a t
+       val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+     end)
+    (C: Osx_attr_bindings.S with type 'a t := 'a M.t) :
+  S with type 'a t := 'a M.t
+
+include S with type 'a t = 'a
