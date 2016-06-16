@@ -1,3 +1,6 @@
+0.2.0 (2016-06-16):
+* Add optional Lwt support
+
 0.1.1 (2016-05-19):
 * Remove debugging print statements
 
