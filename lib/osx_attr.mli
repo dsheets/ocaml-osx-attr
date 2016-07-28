@@ -47,6 +47,7 @@ module Common : sig
     | ACCTIME : Time.Timespec.t t
     | BKUPTIME : Time.Timespec.t t
     | FNDRINFO : string t
+    | FILEID : int64 t
     | ADDEDTIME : Time.Timespec.t t
 end
 

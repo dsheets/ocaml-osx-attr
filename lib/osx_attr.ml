@@ -46,6 +46,10 @@ let read_uint32 data_p =
   let uint32_p = from_voidp uint32_t data_p in
   Unsigned.UInt32.to_int32 (!@ uint32_p), to_voidp (uint32_p +@ 1)
 
+let read_uint64 data_p =
+  let uint64_p = from_voidp uint64_t data_p in
+  Unsigned.UInt64.to_int64 (!@ uint64_p), to_voidp (uint64_p +@ 1)
+
 let read_off data_p =
   let off_p = from_voidp PosixTypes.off_t data_p in
   PosixTypes.Off.to_int64 (!@ off_p), to_voidp (off_p +@ 1)
@@ -81,6 +85,11 @@ let write_bytes k (data_p, trailer_p) bytes =
 
 let write_uint32 (data_p, trailer_p) i =
   let p = from_voidp int32_t data_p in
+  p <-@ i;
+  (to_voidp (p +@ 1), trailer_p)
+
+let write_uint64 (data_p, trailer_p) i =
+  let p = from_voidp int64_t data_p in
   p <-@ i;
   (to_voidp (p +@ 1), trailer_p)
 
@@ -221,9 +230,9 @@ module Common = struct
     | USERACCESS : int32 t
     | EXTENDED_SECURITY : ?? t
     | UUID
-    | GRPUUID
-    | FILEID
-    | PARENTID
+      | GRPUUID*)
+    | FILEID : int64 t
+(*    | PARENTID
       | FULLPATH *)
     | ADDEDTIME : Time.Timespec.t t
       (*| DATA_PROTECT_FLAGS : int32 t*)
@@ -238,6 +247,7 @@ module Common = struct
       | ACCTIME -> acctime
       | BKUPTIME -> bkuptime
       | FNDRINFO -> fndrinfo
+      | FILEID -> fileid
       | ADDEDTIME -> addedtime
     )
 
@@ -266,6 +276,9 @@ module Common = struct
     | FNDRINFO, FNDRINFO -> 0
     | FNDRINFO, _ -> -1
     | _, FNDRINFO -> 1
+    | FILEID, FILEID -> 0
+    | FILEID, _ -> -1
+    | _, FILEID -> 1
     | ADDEDTIME, ADDEDTIME -> 0
 
   let unpack (type a) : a t -> unit ptr -> a * unit ptr = function
@@ -277,6 +290,7 @@ module Common = struct
     | ACCTIME   -> read_timespec
     | BKUPTIME  -> read_timespec
     | FNDRINFO  -> read_bytes 32
+    | FILEID    -> read_uint64
     | ADDEDTIME -> read_timespec
 
   let same (type a) (type b) (v : a) (x : b t) (y : a t) : b option =
@@ -289,6 +303,7 @@ module Common = struct
     | ACCTIME,   ACCTIME   -> Some v
     | BKUPTIME,  BKUPTIME  -> Some v
     | FNDRINFO,  FNDRINFO  -> Some v
+    | FILEID,    FILEID    -> Some v
     | ADDEDTIME, ADDEDTIME -> Some v
     | _,         _         -> None
 
@@ -301,6 +316,7 @@ module Common = struct
     | ACCTIME   -> sizeof Time_unix.Timespec.t, 0
     | BKUPTIME  -> sizeof Time_unix.Timespec.t, 0
     | FNDRINFO  -> 32, 0
+    | FILEID    -> 32, 0
     | ADDEDTIME -> sizeof Time_unix.Timespec.t, 0
 
   let pack (type a)
@@ -313,6 +329,7 @@ module Common = struct
     | ACCTIME   -> write_timespec
     | BKUPTIME  -> write_timespec
     | FNDRINFO  -> write_bytes 32
+    | FILEID    -> write_uint64
     | ADDEDTIME -> write_timespec
 
 end
