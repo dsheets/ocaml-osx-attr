@@ -20,6 +20,7 @@ open Ctypes
 let () =
   let type_oc = open_out "lib_gen/osx_attr_types_detect.c" in
   let fmt = Format.formatter_of_out_channel type_oc in
+  Format.fprintf fmt "#include <sys/vnode.h>@.";
   Format.fprintf fmt "#include <sys/attr.h>@.";
   Format.fprintf fmt "#include <unistd.h>@.";
   Cstubs.Types.write_c fmt (module Osx_attr_types.C);

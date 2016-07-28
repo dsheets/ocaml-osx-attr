@@ -16,6 +16,24 @@
  *)
 
 module C(F: Cstubs.Types.TYPE) = struct
+  module Vnode = struct
+    module Vtype = struct
+      let t = F.typedef F.int "fsobj_type_t"
+
+      let vnon  = F.constant "VNON"  t
+      let vreg  = F.constant "VREG"  t
+      let vdir  = F.constant "VDIR"  t
+      let vblk  = F.constant "VBLK"  t
+      let vchr  = F.constant "VCHR"  t
+      let vlnk  = F.constant "VLNK"  t
+      let vsock = F.constant "VSOCK" t
+      let vfifo = F.constant "VFIFO" t
+      let vbad  = F.constant "VBAD"  t
+      let vstr  = F.constant "VSTR"  t
+      let vcplx = F.constant "VCPLX" t
+    end
+  end
+
   module Options = struct
     type t = Unsigned.ULong.t
 

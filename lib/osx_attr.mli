@@ -15,9 +15,32 @@
  *
  *)
 
+module Vnode : sig
+  module Vtype : sig
+    type t =
+      | VNON
+      | VREG
+      | VDIR
+      | VBLK
+      | VCHR
+      | VLNK
+      | VSOCK
+      | VFIFO
+      | VBAD
+      | VSTR
+      | VCPLX
+      | VUNKNOWN of int
+
+    val to_string : t -> string
+
+    val compare : t -> t -> int
+  end
+end
+
 module Common : sig
   type _ t =
     | NAME : string t
+    | OBJTYPE : Vnode.Vtype.t t
     | CRTIME : Time.Timespec.t t
     | MODTIME : Time.Timespec.t t
     | CHGTIME : Time.Timespec.t t

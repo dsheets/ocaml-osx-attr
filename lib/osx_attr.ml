@@ -89,13 +89,119 @@ let write_off (data_p, trailer_p) off =
   p <-@ (PosixTypes.Off.of_int64 off);
   (to_voidp (p +@ 1), trailer_p)
 
+module Vnode = struct
+  module Vtype = struct
+    type t =
+      | VNON
+      | VREG
+      | VDIR
+      | VBLK
+      | VCHR
+      | VLNK
+      | VSOCK
+      | VFIFO
+      | VBAD
+      | VSTR
+      | VCPLX
+      | VUNKNOWN of int
+
+    let to_string = function
+      | VNON -> "VNON"
+      | VREG -> "VREG"
+      | VDIR -> "VDIR"
+      | VBLK -> "VBLK"
+      | VCHR -> "VCHR"
+      | VLNK -> "VLNK"
+      | VSOCK -> "VSOCK"
+      | VFIFO -> "VFIFO"
+      | VBAD -> "VBAD"
+      | VSTR -> "VSTR"
+      | VCPLX -> "VCPLX"
+      | VUNKNOWN x -> "VUNKNOWN("^string_of_int x^")"
+
+    let compare x y = match x, y with
+      | VNON, VNON ->  0
+      | VNON, _    -> -1
+      | _, VNON    ->  1
+      | VREG, VREG ->  0
+      | VREG, _    -> -1
+      | _, VREG    ->  1
+      | VDIR, VDIR ->  0
+      | VDIR, _    -> -1
+      | _, VDIR    ->  1
+      | VBLK, VBLK ->  0
+      | VBLK, _    -> -1
+      | _, VBLK    ->  1
+      | VCHR, VCHR ->  0
+      | VCHR, _    -> -1
+      | _, VCHR    ->  1
+      | VLNK, VLNK ->  0
+      | VLNK, _    -> -1
+      | _, VLNK    ->  1
+      | VSOCK, VSOCK ->  0
+      | VSOCK, _     -> -1
+      | _, VSOCK     ->  1
+      | VFIFO, VFIFO ->  0
+      | VFIFO, _     -> -1
+      | _, VFIFO     ->  1
+      | VBAD, VBAD ->  0
+      | VBAD, _    -> -1
+      | _, VBAD    ->  1
+      | VSTR, VSTR ->  0
+      | VSTR, _    -> -1
+      | _, VSTR    ->  1
+      | VCPLX, VCPLX ->  0
+      | VCPLX, _     -> -1
+      | _, VCPLX     ->  1
+      | VUNKNOWN x, VUNKNOWN y -> compare x y
+
+    let of_int = function
+      | x when x = Types.Vnode.Vtype.vnon  -> VNON
+      | x when x = Types.Vnode.Vtype.vreg  -> VREG
+      | x when x = Types.Vnode.Vtype.vdir  -> VDIR
+      | x when x = Types.Vnode.Vtype.vblk  -> VBLK
+      | x when x = Types.Vnode.Vtype.vchr  -> VCHR
+      | x when x = Types.Vnode.Vtype.vlnk  -> VLNK
+      | x when x = Types.Vnode.Vtype.vsock -> VSOCK
+      | x when x = Types.Vnode.Vtype.vfifo -> VFIFO
+      | x when x = Types.Vnode.Vtype.vbad  -> VBAD
+      | x when x = Types.Vnode.Vtype.vstr  -> VSTR
+      | x when x = Types.Vnode.Vtype.vcplx -> VCPLX
+      | x -> VUNKNOWN x
+
+    let to_int = Types.Vnode.Vtype.(function
+      | VNON  -> vnon
+      | VREG  -> vreg
+      | VDIR  -> vdir
+      | VBLK  -> vblk
+      | VCHR  -> vchr
+      | VLNK  -> vlnk
+      | VSOCK -> vsock
+      | VFIFO -> vfifo
+      | VBAD  -> vbad
+      | VSTR  -> vstr
+      | VCPLX -> vcplx
+      | VUNKNOWN x -> x
+    )
+
+    let read data_p =
+      let type_p = from_voidp Types.Vnode.Vtype.t data_p in
+      of_int (!@ type_p), to_voidp (type_p +@ 1)
+
+    let write (data_p, trailer_p) t =
+      let p = from_voidp Types.Vnode.Vtype.t data_p in
+      p <-@ (to_int t);
+      (to_voidp (p +@ 1), trailer_p)
+  end
+end
+
 module Common = struct
   type _ t =
     | NAME : string t
 (*    | DEVID : dev_t t
-    | FSID : fsid_t t
-    | OBJTYPE : fsobj_type_t t
-    | OBJTAG : fsobj_tag_t t
+      | FSID : fsid_t t*)
+    | OBJTYPE : Vnode.Vtype.t t
+(*    | OBJTAG : fsobj_tag_t t
     | OBJID : fsobj_id_t t
     | OBJPERMANENTID : fsobj_id_t t
     | PAROBJID : fsobj_id_t t
@@ -125,6 +231,7 @@ module Common = struct
   let to_group (type a) : a t -> Unsigned.UInt32.t =
     Types.Attributes.Common.(function
       | NAME -> name
+      | OBJTYPE -> objtype
       | CRTIME -> crtime
       | MODTIME -> modtime
       | CHGTIME -> chgtime
@@ -138,6 +245,9 @@ module Common = struct
     | NAME, NAME -> 0
     | NAME, _ -> -1
     | _, NAME -> 1
+    | OBJTYPE, OBJTYPE -> 0
+    | OBJTYPE, _ -> -1
+    | _, OBJTYPE -> 1
     | CRTIME, CRTIME -> 0
     | CRTIME, _ -> -1
     | _, CRTIME -> 1
@@ -160,6 +270,7 @@ module Common = struct
 
   let unpack (type a) : a t -> unit ptr -> a * unit ptr = function
     | NAME      -> read_string
+    | OBJTYPE   -> Vnode.Vtype.read
     | CRTIME    -> read_timespec
     | MODTIME   -> read_timespec
     | CHGTIME   -> read_timespec
@@ -171,6 +282,7 @@ module Common = struct
   let same (type a) (type b) (v : a) (x : b t) (y : a t) : b option =
     match x, y with
     | NAME,      NAME      -> Some v
+    | OBJTYPE,   OBJTYPE   -> Some v
     | CRTIME,    CRTIME    -> Some v
     | MODTIME,   MODTIME   -> Some v
     | CHGTIME,   CHGTIME   -> Some v
@@ -182,6 +294,7 @@ module Common = struct
 
   let pack_size (type a) (v : a) : a t -> int * int = function
     | NAME      -> size_string v
+    | OBJTYPE   -> sizeof Types.Vnode.Vtype.t, 0
     | CRTIME    -> sizeof Time_unix.Timespec.t, 0
     | MODTIME   -> sizeof Time_unix.Timespec.t, 0
     | CHGTIME   -> sizeof Time_unix.Timespec.t, 0
@@ -193,6 +306,7 @@ module Common = struct
   let pack (type a)
     : a t -> (unit ptr * char ptr) -> a -> unit ptr * char ptr = function
     | NAME      -> write_string
+    | OBJTYPE   -> Vnode.Vtype.write
     | CRTIME    -> write_timespec
     | MODTIME   -> write_timespec
     | CHGTIME   -> write_timespec
