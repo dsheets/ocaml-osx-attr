@@ -32,19 +32,19 @@ sig
   type 'a t
 
   val getattrlist :
-    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
   val fgetattrlist :
-    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
   val getattrlistat :
-    int -> string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+    int -> string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
   val setattrlist :
-    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+    string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
   val fsetattrlist :
-    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * int) t
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 end
 
 module C(F: Cstubs.FOREIGN) =
