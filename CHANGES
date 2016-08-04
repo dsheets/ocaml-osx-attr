@@ -1,3 +1,9 @@
+0.3.0 (2016-08-04):
+* Add getattrlistbulk binding with getbulk and getlistbulk functions
+* Switch to Signed.sint for the errno type, following unix-errno.0.5.0
+* Add CMN_FILEID (inode) binding
+* Add CMN_OBJTYPE binding
+
 0.2.0 (2016-06-16):
 * Add optional Lwt support
 
