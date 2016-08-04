@@ -132,6 +132,12 @@ sig
     ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> string ->
     'a option t
 
+  val getlistbulk : ?size:int -> Query.t list -> Unix.file_descr ->
+    Value.t list list t
+
+  val getbulk : ?size:int -> 'a Select.t -> Unix.file_descr ->
+    (string * 'a option) list t
+
   val setlist : ?no_follow:bool -> Value.t list -> string -> unit t
 
   val fsetlist : ?no_follow:bool -> Value.t list -> Unix.file_descr -> unit t

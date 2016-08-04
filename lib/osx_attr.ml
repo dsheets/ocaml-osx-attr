@@ -748,6 +748,12 @@ sig
     ?no_follow:bool -> ?size:int -> 'a Select.t -> Unix.file_descr -> string ->
     'a option t
 
+  val getlistbulk : ?size:int -> Query.t list -> Unix.file_descr ->
+    Value.t list list t
+
+  val getbulk : ?size:int -> 'a Select.t -> Unix.file_descr ->
+    (string * 'a option) list t
+
   val setlist : ?no_follow:bool -> Value.t list -> string -> unit t
 
   val fsetlist : ?no_follow:bool -> Value.t list -> Unix.file_descr -> unit t
@@ -845,6 +851,64 @@ struct
   let getat ?(no_follow=false) ?(size=64) selector fd path =
     let f ?no_follow ?size attrs = getlistat ?no_follow ?size attrs fd in
     xget ~no_follow ~size selector f path
+
+  let xgetlistbulk ~size attrs f call label =
+    let rec try_call count =
+      let attrs = (Query.Common Common.NAME)::attrs in
+      let attrlist_p =
+        attrlist_of_groups ~returned:true (Query.groups_of_attrs attrs)
+      in
+      let buffer = to_voidp (allocate_n char ~count) in
+      let count_ = Unsigned.Size_t.of_int count in
+      f attrlist_p buffer count_ Unsigned.ULong.zero >>= fun (rc, errno) ->
+      if rc < 0
+      then raise_errno_error ~call ~label errno
+      else
+        (* TODO: dirent errors? *)
+        let rec next_entry left buffer entries =
+          if left = 0 then entries
+          else
+            let data_p = from_voidp uint32_t buffer in
+            let returned_size = Unsigned.UInt32.to_int (!@ data_p) in
+            let data_p = data_p +@ 1 in
+            let returned_p = from_voidp Types.AttrSet.t (to_voidp data_p) in
+            let attrs = Query.sort_filter (!@ returned_p) attrs in
+            let data_p = to_voidp (returned_p +@ 1) in
+            let results = fst (List.fold_left (fun (results, data_p) attr ->
+              let result, next = Value.unpack attr data_p in
+              (result::results, next)
+            ) ([], data_p) attrs) in
+            next_entry
+              (left - 1)
+              (to_voidp ((from_voidp char buffer) +@ returned_size))
+              (results::entries)
+        in
+        return (next_entry rc buffer [])
+    in
+    try_call size
+
+  let getlistbulk ?(size=4096) attrs dirfd =
+    let fd = int_of_fd dirfd in
+    xgetlistbulk ~size attrs (C.getattrlistbulk fd) "getlistbulk"
+      (string_of_int fd)
+
+  let xgetbulk ?size selector f v =
+    f ?size [Query.Common Common.NAME; Select.to_query selector] v
+    >>= fun attrss ->
+    let check list = function
+      | [] -> list
+      | (Value.Common (Common.NAME, name))::v::_ ->
+        ((name : string), Value.select selector v)::list
+      | v::(Value.Common (Common.NAME, name))::_ ->
+        ((name : string), Value.select selector v)::list
+      | [Value.Common (Common.NAME, name)] ->
+        ((name : string), None)::list
+      | _ -> list
+    in
+    return (List.fold_left check [] attrss)
+
+  let getbulk ?(size=4096) selector fd =
+    xgetbulk ~size selector getlistbulk fd
 
   let xsetlist ~no_follow attrs f call label =
     let attrlist_p =

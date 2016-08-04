@@ -36,6 +36,17 @@ int osx_attr_getattrlistat
   return r;
 }
 
+int osx_attr_getattrlistbulk
+(int dirfd, struct attrlist * attrList, void * attrBuf,
+ size_t attrBufSize, uint64_t options)
+{
+  int r;
+  caml_release_runtime_system();
+  r = getattrlistbulk(dirfd, attrList, attrBuf, attrBufSize, options);
+  caml_acquire_runtime_system();
+  return r;
+}
+
 int osx_attr_setattrlist
 (const char *path, struct attrlist * attrList, void * attrBuf,
  size_t attrBufSize, unsigned long options)
