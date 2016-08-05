@@ -1,4 +1,4 @@
-version = "0.2.0"
+version = "0.3.0"
 description = "OS X generic file system attribute system call bindings"
 requires = "ctypes.stubs unix-errno.unix unix-type-representations unix-time.unix"
 archive(byte) = "osx_attr.cma"
