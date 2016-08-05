@@ -15,9 +15,7 @@
  *
  *)
 
-let path = "file"
-let link_path = "Link"
-let cap_link_path = String.uppercase link_path
+let (/) = Filename.concat
 
 module Vtype : Alcotest.TESTABLE with type t = Osx_attr.Vnode.Vtype.t = struct
   type t = Osx_attr.Vnode.Vtype.t
@@ -32,8 +30,13 @@ let vtype =
 
 let vreg = Osx_attr.Vnode.Vtype.VREG
 let vlnk = Osx_attr.Vnode.Vtype.VLNK
+let vdir = Osx_attr.Vnode.Vtype.VDIR
 
 module Basic = struct
+  let path = "file"
+  let link_path = "Link"
+  let cap_link_path = String.uppercase link_path
+
   let prepare () =
     Unix.(close (openfile path [O_CREAT] 0o600));
     Unix.symlink path link_path
@@ -98,8 +101,53 @@ module Basic = struct
   ]
 end
 
+module Bulk = struct
+  let dir_path = "dir"
+  let dir_contents = [
+    "Link", vlnk;
+    "reg",  vreg;
+    "DIR",  vdir;
+  ]
+
+  let prepare () =
+    Unix.mkdir dir_path 0o700;
+    List.iter Osx_attr.Vnode.Vtype.(function
+      | name, VLNK -> Unix.symlink "target" (dir_path / name)
+      | name, VREG -> Unix.(close (openfile (dir_path / name) [O_CREAT] 0o600))
+      | name, VDIR -> Unix.mkdir (dir_path / name) 0o700
+      | name, typ  ->
+        let msg =
+          Printf.sprintf "don't know how to make %s of type %s"
+            name (to_string typ)
+        in
+        Alcotest.fail msg
+    ) dir_contents
+
+  let cleanup () =
+    let rc = Sys.command ("rm -rf "^dir_path) in
+    Alcotest.(check int) "cleanup directory" 0 rc
+
+  let readdirbulk () =
+    let dirfd = Unix.openfile dir_path Unix.[O_RDONLY] 0 in
+    let dir = Osx_attr.(getbulk (Select.Common Common.OBJTYPE)) dirfd in
+    List.iter (function
+      | (name, None) -> Alcotest.fail ("couldn't get type for "^name)
+      | (name, Some typ) ->
+        match List.assoc name dir_contents with
+        | exception Not_found -> Alcotest.fail ("unexpected entry "^name)
+        | t -> Alcotest.(check vtype) ("type of "^name) t typ
+    ) dir
+
+  let tests = [
+    "prepare", `Quick, prepare;
+    "readdirbulk", `Quick, readdirbulk;
+    "cleanup", `Quick, cleanup;
+  ]
+end
+
 let tests = [
   "Basic", Basic.tests;
+  "Bulk", Bulk.tests;
 ]
 
 ;;

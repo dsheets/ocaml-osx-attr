@@ -40,6 +40,9 @@ sig
   val getattrlistat :
     int -> string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
+  val getattrlistbulk :
+    int -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
+
   val setattrlist :
     string -> Type.AttrList.t structure ptr -> unit ptr -> size_t -> ulong -> (int * Signed.sint) t
 
@@ -63,6 +66,11 @@ struct
   let getattrlistat = F.(foreign "getattrlistat" (
     int @-> string @-> ptr Type.AttrList.t @-> ptr void @-> size_t @->
     ulong @-> returning int
+  ))
+
+  let getattrlistbulk = F.(foreign "getattrlistbulk" (
+    int @-> ptr Type.AttrList.t @-> ptr void @-> size_t @-> ulong @->
+    returning int
   ))
 
   let setattrlist = F.(foreign "setattrlist" (

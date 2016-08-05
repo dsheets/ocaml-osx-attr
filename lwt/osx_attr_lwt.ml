@@ -24,6 +24,7 @@ struct
   let getattrlist s a p l u = G.(getattrlist s a p l u).Gen.lwt
   let fgetattrlist x a p l u = G.(fgetattrlist x a p l u).Gen.lwt
   let getattrlistat x y a p l u = G.(getattrlistat x y a p l u).Gen.lwt
+  let getattrlistbulk x a p l u = G.(getattrlistbulk x a p l u).Gen.lwt
   let setattrlist s a p l u = G.(setattrlist s a p l u).Gen.lwt
   let fsetattrlist s a p l u = G.(fsetattrlist s a p l u).Gen.lwt
 end
